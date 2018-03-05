@@ -13,37 +13,50 @@ type Time_Varying_Arrival_Setting
   β::Float64
   γ::Float64
   λ::Function # λ(t): arrival rate function
-  Λ::Function #
-  Λ_interval::Function # Λ(a,b) = ∫λ(s)ds on (a,b]: integrated arrival rate function
+  Λ::Function # Λ(a,b) = ∫λ(s)ds on (a,b]: integrated arrival rate function
   string_of_distribution::String # String of base distribution
   base_distribution::Distribution # Nonstationary Non-Poisson process requires its base distribution to generate arrival times
-  table::Array{Float64}
   function Time_Varying_Arrival_Setting(_coefficients::Tuple{Float64,Float64,Float64}, _string_of_distribution::String)
     α = _coefficients[1]
     β = _coefficients[2]
     γ = _coefficients[3]
     λ = x -> α + β*sin(γ*x)
-    Λ = t -> α*t-(β/γ)*(cos(γ*t)-1)
-    Λ_interval = (x,y) -> α*(s-x)-(β/γ)*(cos(γ*s)-cos(γ*x))
+    Λ = (x,s) -> α*(s-x)-(β/γ)*(cos(γ*s)-cos(γ*x))
     string_of_distribution = _string_of_distribution
-    new(α, β, γ, λ, Λ, Λ_interval, string_of_distribution)
+    new(α, β, γ, λ, Λ, string_of_distribution)
   end
 end
 
 type Time_Varying_Service_Setting
   control::String
-  target::Float64
+  param::Float64
+  param_letter::String
+  μ::Function # μ(t): service_rate_function
+  M::Function # ∫μ(s)ds on (a,b]: integrated_service_rate_function
   string_of_distribution::String # String of workload distribution
   workload_distribution::Distribution # each customer brings its own workload distributed by a certain distribution.
-  μ::Function # μ(t): service_rate_function
-  M::Function
-  M_interval::Function # ∫μ(s)ds on (a,b]: integrated_service_rate_function
-  table::Array{Float64}
-  function Time_Varying_Service_Setting(_TVAS::Time_Varying_Arrival_Setting, _control::String, _target::Float64, _string_of_distribution::String)
+  function Time_Varying_Service_Setting(_TVAS::Time_Varying_Arrival_Setting, _control::String, _param::Float64, _string_of_distribution::String)
     control = _control
-    target = _target
+    param = _param
+    if _control == "RM"
+      μ = t -> _TVAS.λ(t)/_param
+      M = (x,y) -> (1/_param)*_TVAS.Λ(x,y)
+      param_letter = "ρ"
+    elseif _control == "SR"
+      μ = t -> _TVAS.λ(t) + _param*sqrt(_TVAS.λ(t))
+      M = (x,y) -> QuadGK.quadgk(μ, x, y)[1]
+      param_letter = "ξ"
+    elseif _control == "PSA"
+      μ = t -> _TVAS.λ(t) + (_TVAS.λ(t)/2)*(sqrt((_TVAS.λ(t)+_param)/_TVAS.λ(t))-1)
+      M = (x,y) -> QuadGK.quadgk(μ, x, y)[1]
+      param_letter = "ζ"
+    elseif _control == "DM"
+      μ = t -> _TVAS.λ(t) + _param
+      M = (x,y) -> _TVAS.Λ(x,y)+(y-x)*_param
+      param_letter = "δ"
+    end
     string_of_distribution = _string_of_distribution
-    new(control, target, string_of_distribution)
+    new(control, param, param_letter, μ, M, string_of_distribution)
   end
 end
 

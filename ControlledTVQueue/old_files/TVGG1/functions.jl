@@ -1,85 +1,5 @@
-function table_for_any_periodic_J(f::Function, T::Float64)  # standard_J: λ(t)=1+βsin(t)
-    temp = Float64[]
-    X = 0.0:T/10000:T
-    for x in X push!(temp,f(x)) end
-    f_u = maximum(temp)
-    f_l = minimum(temp)
-    average = QuadGK.quadgk(f,0.0,T)[1]/T
-    F(t) = QuadGK.quadgk(f,0.0,t)[1]
-    ϵ = max(1,1/f_u)/100
-    ρ = f_u/f_l
-    η = ϵ/(1+ρ)
-    δ = (f_u*ϵ)/(1+ρ)
-    nx = (T*(1+ρ))/ϵ
-    ny = F(T)/δ
-    y = 0.0:δ:F(T)
-
-    X = 0.0:η:T
-    a = Float64[]
-    for x in X
-        push!(a,F(x))
-    end
-
-    b = Float64[]
-    i,j = 1,1
-    while j < nx + 1 && i < ny + 1
-        if y[i] > a[j]
-            j += 1
-        else
-            push!(b, j)
-            i += 1
-        end
-    end
-    push!(b,average)    # b[end-3]
-    push!(b,T)        # b[end-2]
-    push!(b,δ)        # b[end-1]
-    push!(b,η)        # b[end]
-    return b
-end
-
-function table_for_sinusoidal_J(coeff::Tuple{Float64,Float64,Float64})  # standard_J: λ(t)=1+βsin(t)
-    α, β, γ = coeff
-    λ_bar = α
-    T = (2*π)/γ
-    λ(t) = α+β*sin(γ*t)
-    Λ(t) = α*t-(β/γ)*(cos(γ*t)-1)
-    λ_u, λ_l = α+β, α-β
-    ϵ = max(1,1/λ_u)/100
-    ρ = λ_u/λ_l
-    η = ϵ/(1+ρ)
-    δ = (λ_u*ϵ)/(1+ρ)
-    nx = (T*(1+ρ))/ϵ
-    ny = Λ(T)/δ
-    y = 0.0:δ:Λ(T)
-    a = Λ(0.0:η:T)
-    b = Float64[]
-    i,j = 1,1
-    while j < nx + 1 && i < ny + 1
-        if y[i] > a[j]
-            j += 1
-        else
-            push!(b, j)
-            i += 1
-        end
-    end
-    push!(b,λ_bar)    # b[end-3]
-    push!(b,T)        # b[end-2]
-    push!(b,δ)        # b[end-1]
-    push!(b,η)        # b[end]
-    return b
-end
-
-function J(t::Float64, table::Array{Float64})
-    index = Int64(floor(mod(t,(table[end-3]*table[end-2]))/table[end-1]))
-    if index != 0
-        return floor(t/(table[end-3]*table[end-2]))*table[end-2] + table[index]*table[end]
-    else
-        return floor(t/(table[end-3]*table[end-2]))*table[end-2]
-    end
-end
-
-function inverse_integrated_rate_function(Λ::Function, s::Float64, val::Float64, table::Array{Float64})
-    return J(val+Λ(s),table)
+function inverse_integrated_rate_function(_Λ::Function, _s::Float64, _val::Float64)  # Λ: integrated rate function, s: starting point
+    return fzero(x -> _Λ(_s,x)-_val , _s)
 end
 
 function inverse_cdf(f::Function, val::Float64) # find inf{t>0: F(t) > val}, f: pdf
@@ -101,11 +21,11 @@ function string_to_dist(Distribution::String) # All distributions have mean 1.0.
     return Pareto(1+sqrt(2),2-sqrt(2))
   elseif Distribution == "Lognormal"
     return LogNormal(-log(2)/2,sqrt(log(2)))
-  elseif Distribution == "EXP"
+  elseif Distribution == "Exponential"
     return Exponential(1.0)
-  elseif Distribution == "E2"
+  elseif Distribution == "Erlang"
     return Erlang(2,1/2)
-  elseif Distribution == "H2"
+  elseif Distribution == "Hyperexponential"
     return Exponential(1.0) # this is temporal
   end
 end
@@ -118,60 +38,22 @@ function set_distribution(TVS::Any)
   end
 end
 
-function set_service_rate_function(TVAS::Any, TVSS::Any)
-  scv_arrival = 0.0
-  scv_service = 0.0
-  if TVAS.string_of_distribution == "EXP"
-    scv_arrival = 1.0
-  elseif TVAS.string_of_distribution == "H2"
-    scv_arrival = 4.0
-  elseif TVAS.string_of_distribution == "E2"
-    scv_arrival = 0.5
-  end
-
-  if TVSS.string_of_distribution == "EXP"
-    scv_service = 1.0
-  elseif TVSS.string_of_distribution == "H2"
-    scv_service = 4.0
-  elseif TVSS.string_of_distribution == "E2"
-    scv_service = 0.5
-  end
-
-  s = TVSS.target
-  V = (scv_arrival+scv_service)/2
-  λ = TVAS.λ
-  if TVSS.control == "SR"
-    TVSS.μ = t -> λ(t)/2-(1/(2*s))+sqrt(((s*λ(t)+1)^2)-4*s*(1-V)*λ(t))/(2*s)
-    TVSS.M = t -> QuadGK.quadgk(TVSS.μ, 0.0, t)[1]
-    TVSS.M_interval = (x,y) -> QuadGK.quadgk(TVSS.μ, x, y)[1]
-  elseif TVSS.control == "PD"
-    TVSS.μ = t -> λ(t) + (V/s)
-    TVSS.M = t -> TVAS.Λ(t)+t*(V/s)
-    TVSS.M_interval = (x,y) -> TVAS.Λ_interval(x,y)+(y-x)*(V/s)
-  end
-end
-
-function set_tables(TVAS::Any, TVSS::Any)
-    TVAS.table = table_for_sinusoidal_J((TVAS.α,TVAS.β,TVAS.γ))
-    TVSS.table = table_for_any_periodic_J(TVSS.μ, 2*π/TVAS.γ)
-end
-
 function generate_Hyperexponential(p1::Float64, p2::Float64, θ1::Float64, θ2::Float64)
   return rand() < p1 ? rand(Exponential(θ1)) : rand(Exponential(θ2)) # with prob. p1, return Exponential(1/λ1), with prob. p2, returen Exp(1/λ2)
 end
 
 function generate_NHNP(TVAS::Time_Varying_Arrival_Setting, T::Float64)
-  if TVAS.string_of_distribution != "H2"
+  if TVAS.string_of_distribution != "Hyperexponential"
     g_e = t -> 1-cdf(TVAS.base_distribution,t)/mean(TVAS.base_distribution)
     S = inverse_cdf(g_e , rand())
-  	V = [ inverse_integrated_rate_function(TVAS.Λ, 0.0, S, TVAS.table) ]
+  	V = [ inverse_integrated_rate_function(TVAS.Λ, 0.0, S) ]
     n = 1
     while V[n] < T
-      push!(V, inverse_integrated_rate_function(TVAS.Λ, V[n], rand(TVAS.base_distribution), TVAS.table) )
+      push!(V, inverse_integrated_rate_function(TVAS.Λ, V[n], rand(TVAS.base_distribution)) )
       n += 1
     end
     return V
-  elseif TVAS.string_of_distribution == "H2"
+  elseif TVAS.string_of_distribution == "Hyperexponential"
     # Hyperexponential parameters
     p1 = (5+sqrt(15))/10
     p2 = 1-p1
@@ -182,11 +64,11 @@ function generate_NHNP(TVAS::Time_Varying_Arrival_Setting, T::Float64)
     τ = 1.0 # Hyeperexponential mean
     g_e = t -> (1-G(t))/τ # Hyperexponential equilibrium pdf
     S = inverse_cdf(g_e, rand())
-    V = [ inverse_integrated_rate_function(TVAS.Λ, 0.0, S, TVAS.table) ]
+    V = [ inverse_integrated_rate_function(TVAS.Λ, 0.0, S) ]
     n = 1
     while V[n] < T
       S = generate_Hyperexponential(p1,p2,θ1,θ2)
-      push!(V, inverse_integrated_rate_function(TVAS.Λ, V[n], S, TVAS.table) )
+      push!(V, inverse_integrated_rate_function(TVAS.Λ, V[n], S))
       n += 1
     end
     return V
@@ -194,14 +76,14 @@ function generate_NHNP(TVAS::Time_Varying_Arrival_Setting, T::Float64)
 end
 
 function generate_customer_pool(TVAS::Time_Varying_Arrival_Setting, TVSS::Time_Varying_Service_Setting, T::Float64)
-  if TVSS.string_of_distribution != "H2"
+  if TVSS.string_of_distribution != "Hyperexponential"
     arrival_times = generate_NHNP(TVAS, T)
     Customers = Customer[]
     for i in 1:length(arrival_times)
       push!(Customers, Customer(i, rand(TVSS.workload_distribution), arrival_times[i], 0.0, typemax(Float64), 0.0, 0.0))
     end
     return Customers
-  else TVSS.string_of_distribution == "H2"
+  else TVSS.string_of_distribution == "Hyperexponential"
     p1 = (5+sqrt(15))/10
     p2 = 1-p1
     θ1 = 1/(2*p1)
@@ -222,7 +104,7 @@ function next_event(system::TVGG1_queue, customer_pool::Array{Customer}, record:
     # reduce workloads for each customer & virtual customer in system
     service_amount = 0.0
     if system.number_of_customers > 0
-      service_amount = system.TVSS.M_interval(system.sim_time, current_time)
+      service_amount = system.TVSS.M(system.sim_time, current_time)
       system.WIP[1].remaining_workload -= service_amount
     end
 
@@ -240,7 +122,7 @@ function next_event(system::TVGG1_queue, customer_pool::Array{Customer}, record:
     # update next completion information
     if system.number_of_customers == 1
       system.WIP[1].service_beginning_time = system.WIP[1].arrival_time
-      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, system.WIP[1].remaining_workload, system.TVSS.table)
+      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, system.WIP[1].remaining_workload)
     end
   elseif system.next_completion_time == min(system.next_arrival_time, system.next_completion_time, system.next_regular_recording)
     current_time = system.next_completion_time
@@ -258,7 +140,7 @@ function next_event(system::TVGG1_queue, customer_pool::Array{Customer}, record:
 
     # update next completion information & next customer's service beginning time
     if system.number_of_customers > 0
-      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, system.WIP[1].remaining_workload, system.TVSS.table)
+      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, system.WIP[1].remaining_workload)
       system.WIP[1].service_beginning_time = system.sim_time
       system.WIP[1].waiting_time = system.sim_time - system.WIP[1].arrival_time
     else
@@ -269,7 +151,7 @@ function next_event(system::TVGG1_queue, customer_pool::Array{Customer}, record:
 
     # reduce workloads for a customer
     if system.number_of_customers > 0
-      service_amount = system.TVSS.M_interval(system.sim_time, current_time)
+      service_amount = system.TVSS.M(system.sim_time, current_time)
       system.WIP[1].remaining_workload -= service_amount
     end
 
@@ -305,51 +187,48 @@ function record_virtual_waiting_times(customer_pool::Array{Customer}, record::Re
 end
 
 function record_virtual_sojourn_times(TVSS::Time_Varying_Service_Setting, record::Record)
-  if TVSS.string_of_distribution != "H2"
+  if TVSS.string_of_distribution != "Hyperexponential"
     for i in 1:length(record.T)
-      push!(record.S , record.W[i] + inverse_integrated_rate_function(TVSS.M, record.T[i] + record.W[i], rand(TVSS.workload_distribution), TVSS.table) - (record.T[i] + record.W[i]) )
+      push!(record.S , record.W[i] + inverse_integrated_rate_function(TVSS.M, record.T[i] + record.W[i], rand(TVSS.workload_distribution)) - (record.T[i] + record.W[i]) )
     end
-  elseif TVSS.string_of_distribution == "H2"
+  elseif TVSS.string_of_distribution == "Hyperexponential"
     p1 = (5+sqrt(15))/10
     p2 = 1-p1
     θ1 = 1/(2*p1)
     θ2 = 1/(2*p2)
     for i in 1:length(record.T)
-      push!(record.S , record.W[i] + inverse_integrated_rate_function(TVSS.M, record.T[i] + record.W[i], generate_Hyperexponential(p1,p2,θ1,θ2), TVSS.table) - (record.T[i] + record.W[i]) )
+      push!(record.S , record.W[i] + inverse_integrated_rate_function(TVSS.M, record.T[i] + record.W[i], generate_Hyperexponential(p1,p2,θ1,θ2)) - (record.T[i] + record.W[i]) )
     end
   end
 end
 
-function do_experiment(queue::String, control::String, target::Float64, arrival::String,
-                        service::String, coeff::Tuple, T::Float64, N::Int64, record::Record)
+function do_experiment(queue::String, control::String, param::Float64, arrival::String, service::String, coeff::Tuple, T::Float64, N::Int64, record::Record)
   TVAS = Time_Varying_Arrival_Setting(coeff, arrival)
-  TVSS = Time_Varying_Service_Setting(TVAS, control, target, service)
+  TVSS = Time_Varying_Service_Setting(TVAS, control, param, service)
   set_distribution(TVAS)
   set_distribution(TVSS)
-  set_service_rate_function(TVAS, TVSS)
-  set_tables(TVAS,TVSS)
-  file_num_in_queue = open("./queue_length_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)).txt" , "w")
-  file_virtual_sojourn_time = open("./sojourn_time_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)).txt" , "w")
+  file_num_in_queue = open("num in queue ($queue, gamma $(coeff[3]), control $control, param $param, arrival $arrival, service $service, time $T, rep $N).txt" , "w")
+  file_virtual_sojourn_time = open("virtual sojourn time ($queue, gamma $(coeff[3]), control $control, param $param, arrival $arrival, service $service, time $T, rep $N).txt" , "w")
   regular_recording_interval = T/1000
   t = 0.0
   while t <= T
 		push!(record.T, t)
     t += regular_recording_interval
   end
-  writedlm(file_num_in_queue, transpose(record.T)) # write time-axis
+	writedlm(file_num_in_queue, transpose(record.T)) # write time-axis
   writedlm(file_virtual_sojourn_time, transpose(record.T)) # write time-axis
 
   for n in 1:N
     println("Replication $n")
-	record.Q = Int64[]
+		record.Q = Int64[]
     record.W = Float64[]
     record.S = Float64[]
     record.A = Int64[]
     system = TVGG1_queue(TVAS, TVSS)
-    customer_pool = generate_customer_pool(TVAS, TVSS, T*1.5)
+    customer_pool = generate_customer_pool(TVAS, TVSS, T*1.01)
     system.regular_recording_interval = T/1000
     system.next_arrival_time = customer_pool[1].arrival_time
-    run_to_end(system, customer_pool, record, T*1.2, 0.0)
+    run_to_end(system, customer_pool, record, T*1.1, 0.0)
     record_virtual_waiting_times(customer_pool, record)
     record_virtual_sojourn_times(TVSS, record)
     writedlm(file_num_in_queue, transpose(record.Q)) # write record Q(t)

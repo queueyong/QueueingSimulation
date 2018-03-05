@@ -1,85 +1,7 @@
-function table_for_any_periodic_J(f::Function, T::Float64)  # standard_J: λ(t)=1+βsin(t)
-    temp = Float64[]
-    X = 0.0:T/10000:T
-    for x in X push!(temp,f(x)) end
-    f_u = maximum(temp)
-    f_l = minimum(temp)
-    average = QuadGK.quadgk(f,0.0,T)[1]/T
-    F(t) = QuadGK.quadgk(f,0.0,t)[1]
-    ϵ = max(1,1/f_u)/100
-    ρ = f_u/f_l
-    η = ϵ/(1+ρ)
-    δ = (f_u*ϵ)/(1+ρ)
-    nx = (T*(1+ρ))/ϵ
-    ny = F(T)/δ
-    y = 0.0:δ:F(T)
 
-    X = 0.0:η:T
-    a = Float64[]
-    for x in X
-        push!(a,F(x))
-    end
-
-    b = Float64[]
-    i,j = 1,1
-    while j < nx + 1 && i < ny + 1
-        if y[i] > a[j]
-            j += 1
-        else
-            push!(b, j)
-            i += 1
-        end
-    end
-    push!(b,average)    # b[end-3]
-    push!(b,T)        # b[end-2]
-    push!(b,δ)        # b[end-1]
-    push!(b,η)        # b[end]
-    return b
-end
-
-function table_for_sinusoidal_J(coeff::Tuple{Float64,Float64,Float64})  # standard_J: λ(t)=1+βsin(t)
-    α, β, γ = coeff
-    λ_bar = α
-    T = (2*π)/γ
-    λ(t) = α+β*sin(γ*t)
-    Λ(t) = α*t-(β/γ)*(cos(γ*t)-1)
-    λ_u, λ_l = α+β, α-β
-    ϵ = max(1,1/λ_u)/100
-    ρ = λ_u/λ_l
-    η = ϵ/(1+ρ)
-    δ = (λ_u*ϵ)/(1+ρ)
-    nx = (T*(1+ρ))/ϵ
-    ny = Λ(T)/δ
-    y = 0.0:δ:Λ(T)
-    a = Λ(0.0:η:T)
-    b = Float64[]
-    i,j = 1,1
-    while j < nx + 1 && i < ny + 1
-        if y[i] > a[j]
-            j += 1
-        else
-            push!(b, j)
-            i += 1
-        end
-    end
-    push!(b,λ_bar)    # b[end-3]
-    push!(b,T)        # b[end-2]
-    push!(b,δ)        # b[end-1]
-    push!(b,η)        # b[end]
-    return b
-end
-
-function J(t::Float64, table::Array{Float64})
-    index = Int64(floor(mod(t,(table[end-3]*table[end-2]))/table[end-1]))
-    if index != 0
-        return floor(t/(table[end-3]*table[end-2]))*table[end-2] + table[index]*table[end]
-    else
-        return floor(t/(table[end-3]*table[end-2]))*table[end-2]
-    end
-end
-
-function inverse_integrated_rate_function(Λ::Function, s::Float64, val::Float64, table::Array{Float64})
-    return J(val+Λ(s),table)
+# Functions
+function inverse_integrated_rate_function(_Λ::Function, _s::Float64, _val::Float64)  # Λ: integrated rate function, s: starting point
+    return fzero(x -> _Λ(_s,x)-_val , _s)
 end
 
 function inverse_cdf(f::Function, val::Float64) # find inf{t>0: F(t) > val}, f: pdf
@@ -101,11 +23,11 @@ function string_to_dist(Distribution::String) # All distributions have mean 1.0.
     return Pareto(1+sqrt(2),2-sqrt(2))
   elseif Distribution == "Lognormal"
     return LogNormal(-log(2)/2,sqrt(log(2)))
-  elseif Distribution == "EXP"
+  elseif Distribution == "Exponential"
     return Exponential(1.0)
-  elseif Distribution == "E2"
+  elseif Distribution == "Erlang"
     return Erlang(2,1/2)
-  elseif Distribution == "H2"
+  elseif Distribution == "Hyperexponential"
     return Exponential(1.0) # this is temporal
   end
 end
@@ -118,60 +40,22 @@ function set_distribution(TVS::Any)
   end
 end
 
-function set_service_rate_function(TVAS::Any, TVSS::Any)
-  scv_arrival = 0.0
-  scv_service = 0.0
-  if TVAS.string_of_distribution == "EXP"
-    scv_arrival = 1.0
-  elseif TVAS.string_of_distribution == "H2"
-    scv_arrival = 4.0
-  elseif TVAS.string_of_distribution == "E2"
-    scv_arrival = 0.5
-  end
-
-  if TVSS.string_of_distribution == "EXP"
-    scv_service = 1.0
-  elseif TVSS.string_of_distribution == "H2"
-    scv_service = 4.0
-  elseif TVSS.string_of_distribution == "E2"
-    scv_service = 0.5
-  end
-
-  s = TVSS.target
-  V = (scv_arrival+scv_service)/2
-  λ = TVAS.λ
-  if TVSS.control == "SR"
-    TVSS.μ = t -> λ(t)/2-(1/(2*s))+sqrt(((s*λ(t)+1)^2)-4*s*(1-V)*λ(t))/(2*s)
-    TVSS.M = t -> QuadGK.quadgk(TVSS.μ, 0.0, t)[1]
-    TVSS.M_interval = (x,y) -> QuadGK.quadgk(TVSS.μ, x, y)[1]
-  elseif TVSS.control == "PD"
-    TVSS.μ = t -> λ(t) + (V/s)
-    TVSS.M = t -> TVAS.Λ(t)+t*(V/s)
-    TVSS.M_interval = (x,y) -> TVAS.Λ_interval(x,y)+(y-x)*(V/s)
-  end
-end
-
-function set_tables(TVAS::Any, TVSS::Any)
-    TVAS.table = table_for_sinusoidal_J((TVAS.α,TVAS.β,TVAS.γ))
-    TVSS.table = table_for_any_periodic_J(TVSS.μ, 2*π/TVAS.γ)
-end
-
 function generate_Hyperexponential(p1::Float64, p2::Float64, θ1::Float64, θ2::Float64)
   return rand() < p1 ? rand(Exponential(θ1)) : rand(Exponential(θ2)) # with prob. p1, return Exponential(1/λ1), with prob. p2, returen Exp(1/λ2)
 end
 
 function generate_NHNP(TVAS::Time_Varying_Arrival_Setting, T::Float64)
-  if TVAS.string_of_distribution != "H2"
+  if TVAS.string_of_distribution != "Hyperexponential"
     g_e = t -> 1-cdf(TVAS.base_distribution,t)/mean(TVAS.base_distribution)
     S = inverse_cdf(g_e , rand())
-  	V = [ inverse_integrated_rate_function(TVAS.Λ, 0.0, S, TVAS.table) ]
+  	V = [ inverse_integrated_rate_function(TVAS.Λ, 0.0, S) ]
     n = 1
     while V[n] < T
-      push!(V, inverse_integrated_rate_function(TVAS.Λ, V[n], rand(TVAS.base_distribution), TVAS.table) )
+      push!(V, inverse_integrated_rate_function(TVAS.Λ, V[n], rand(TVAS.base_distribution)) )
       n += 1
     end
     return V
-  elseif TVAS.string_of_distribution == "H2"
+  elseif TVAS.string_of_distribution == "Hyperexponential"
     # Hyperexponential parameters
     p1 = (5+sqrt(15))/10
     p2 = 1-p1
@@ -182,11 +66,11 @@ function generate_NHNP(TVAS::Time_Varying_Arrival_Setting, T::Float64)
     τ = 1.0 # Hyeperexponential mean
     g_e = t -> (1-G(t))/τ # Hyperexponential equilibrium pdf
     S = inverse_cdf(g_e, rand())
-    V = [ inverse_integrated_rate_function(TVAS.Λ, 0.0, S, TVAS.table) ]
+    V = [ inverse_integrated_rate_function(TVAS.Λ, 0.0, S) ]
     n = 1
     while V[n] < T
       S = generate_Hyperexponential(p1,p2,θ1,θ2)
-      push!(V, inverse_integrated_rate_function(TVAS.Λ, V[n], S, TVAS.table))
+      push!(V, inverse_integrated_rate_function(TVAS.Λ, V[n], S))
       n += 1
     end
     return V
@@ -194,14 +78,14 @@ function generate_NHNP(TVAS::Time_Varying_Arrival_Setting, T::Float64)
 end
 
 function generate_customer_pool(TVAS::Time_Varying_Arrival_Setting, TVSS::Time_Varying_Service_Setting, T::Float64)
-  if TVSS.string_of_distribution != "H2"
+  if TVSS.string_of_distribution != "Hyperexponential"
     arrival_times = generate_NHNP(TVAS, T)
     Customers = Customer[]
     for i in 1:length(arrival_times)
       push!(Customers, Customer(i, rand(TVSS.workload_distribution), arrival_times[i], 0.0, typemax(Float64), 0.0, 0.0))
     end
     return Customers
-  else TVSS.string_of_distribution == "H2"
+  else TVSS.string_of_distribution == "Hyperexponential"
     p1 = (5+sqrt(15))/10
     p2 = 1-p1
     θ1 = 1/(2*p1)
@@ -221,7 +105,7 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
     # reduce workloads for each customer & virtual customer in system
     total_service_amount = 0.0
     if system.number_of_customers > 0 || system.number_of_virtual_customers > 0
-      total_service_amount = system.TVSS.M_interval(system.sim_time, current_time)
+      total_service_amount = system.TVSS.M(system.sim_time, current_time)
       individual_service_amount = total_service_amount/system.number_of_customers
       for customer in system.WIP
         customer.remaining_workload -= individual_service_amount # reduce workload of customers
@@ -246,21 +130,21 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
     # update next completion information
     if system.number_of_customers == 1
       system.next_completion_index = 1
-      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, system.WIP[1].remaining_workload, system.TVSS.table)
+      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, system.WIP[1].remaining_workload)
     elseif system.number_of_customers > 1
       if system.WIP[system.next_completion_index].remaining_workload > system.WIP[end].remaining_workload
         system.next_completion_index = system.number_of_customers
       end
       nci = system.next_completion_index
       Q = system.number_of_customers
-      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, Q*system.WIP[nci].remaining_workload, system.TVSS.table)
+      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, Q*system.WIP[nci].remaining_workload)
     end
 
     # update next virtual completion information
     if system.number_of_virtual_customers > 0
       nvci = system.next_virtual_completion_index
       Q = system.number_of_customers
-      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload, system.TVSS.table)
+      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload)
     end
 
     total_workload = 0.0
@@ -272,7 +156,7 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
     # reduce workloads for each customer & virtual customer in system
     total_service_amount = 0.0
     if system.number_of_customers > 1 || system.number_of_virtual_customers > 0 # if # of customer == 1, we can just remove the customer
-      total_service_amount = system.TVSS.M_interval(system.sim_time, current_time)
+      total_service_amount = system.TVSS.M(system.sim_time, current_time)
       individual_service_amount = total_service_amount/system.number_of_customers
       for customer in system.WIP
         customer.remaining_workload -= individual_service_amount # reduce workload of customers
@@ -305,7 +189,7 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
       system.next_completion_time = typemax(Float64)
     elseif system.number_of_customers == 1
       system.next_completion_index = 1
-      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, system.WIP[1].remaining_workload, system.TVSS.table)
+      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, system.WIP[1].remaining_workload)
     elseif system.number_of_customers > 1
       shortest_remaining_workload = typemax(Float64)
       for i in 1:length(system.WIP)
@@ -316,21 +200,21 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
       end
       nci = system.next_completion_index
       Q = system.number_of_customers
-      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, Q*system.WIP[nci].remaining_workload, system.TVSS.table)
+      system.next_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, Q*system.WIP[nci].remaining_workload)
     end
 
     # update next virtual completion information
     if system.number_of_virtual_customers > 0
       nvci = system.next_virtual_completion_index
       Q = system.number_of_customers
-      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload, system.TVSS.table)
+      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload)
     end
   elseif system.next_virtual_completion_time == min(system.next_arrival_time, system.next_completion_time, system.next_virtual_completion_time, system.next_regular_recording)
     current_time = system.next_virtual_completion_time
     # reduce workloads for each customer & virtual customer in system
     total_service_amount = 0.0
     if system.number_of_customers > 0 || system.number_of_virtual_customers > 1
-      total_service_amount = system.TVSS.M_interval(system.sim_time, current_time)
+      total_service_amount = system.TVSS.M(system.sim_time, current_time)
       individual_service_amount = total_service_amount/system.number_of_customers
       for customer in system.WIP
         customer.remaining_workload -= individual_service_amount # reduce workload of customers
@@ -360,7 +244,7 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
     elseif system.number_of_virtual_customers == 1
       system.next_virtual_completion_index = 1
       Q = system.number_of_customers
-      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[1].remaining_workload, system.TVSS.table)
+      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[1].remaining_workload)
     elseif system.number_of_virtual_customers > 1
       shortest_remaining_workload = typemax(Float64)
       for i in 1:length(system.Virtual_WIP)
@@ -371,7 +255,7 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
       end
       nvci = system.next_virtual_completion_index
       Q = system.number_of_customers
-      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload, system.TVSS.table)
+      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload)
     end
 
   elseif system.next_regular_recording == min(system.next_arrival_time, system.next_completion_time, system.next_virtual_completion_time, system.next_regular_recording)
@@ -379,7 +263,7 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
     # reduce workloads for each customer & virtual customer in system
     total_service_amount = 0.0
     if system.number_of_customers > 0 || system.number_of_virtual_customers > 0
-      total_service_amount = system.TVSS.M_interval(system.sim_time, current_time)
+      total_service_amount = system.TVSS.M(system.sim_time, current_time)
       individual_service_amount = total_service_amount/system.number_of_customers
       for customer in system.WIP
         customer.remaining_workload -= individual_service_amount # reduce workload of customers
@@ -391,14 +275,14 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
     end
 
     # insert a new virtual customer in the system
-    if system.TVSS.string_of_distribution != "H2"
-      push!(system.Virtual_WIP, Virtual_Customer(system.time_index, rand(system.TVSS.workload_distribution), current_time, current_time, typemax(Float64), 0, 0))
-    elseif system.TVSS.string_of_distribution == "H2"
+    if system.TVSS.string_of_distribution != "Hyperexponential"
+      push!(system.Virtual_WIP, Virtual_Customer(system.time_index, rand(system.TVSS.workload_distribution), current_time, current_time, typemax(Float64), 0.0, 0.0))
+    elseif system.TVSS.string_of_distribution == "Hyperexponential"
       p1 = (5+sqrt(15))/10
       p2 = 1-p1
       θ1 = 1/(2*p1)
       θ2 = 1/(2*p2)
-      push!(system.Virtual_WIP, Virtual_Customer(system.time_index, generate_Hyperexponential(p1,p2,θ1,θ2), current_time, current_time, typemax(Float64), 0, 0))
+      push!(system.Virtual_WIP, Virtual_Customer(system.time_index, generate_Hyperexponential(p1,p2,θ1,θ2), current_time, current_time, typemax(Float64), 0.0, 0.0))
     end
 
     # increase # of virtual customer
@@ -415,7 +299,7 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
     if system.number_of_virtual_customers == 1
       system.next_virtual_completion_index = 1
       Q = system.number_of_customers
-      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[1].remaining_workload, system.TVSS.table)
+      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[1].remaining_workload)
     else
       nvci = system.next_virtual_completion_index
       if system.Virtual_WIP[nvci].remaining_workload > system.Virtual_WIP[end].remaining_workload
@@ -423,13 +307,13 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
       end
       nvci = system.next_virtual_completion_index
       Q = system.number_of_customers
-      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload, system.TVSS.table)
+      system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload)
     end
 
     # record the number of customer, arrival process, temporal sojourn time
     push!(record.Q, system.number_of_customers)
     push!(record.A, system.customer_arrival_counter)
-    push!(record.S, -1.0) # this will be re-recorded when the virtual customer is leaving
+    push!(record.S, 0.0) # this will be re-recorded when the virtual customer is leaving
   end
 end
 
@@ -439,17 +323,13 @@ function run_to_end(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
   end
 end
 
-function do_experiment(queue::String, control::String, target::Float64, arrival::String, service::String, coeff::Tuple, T::Float64, N::Int64, record::Record)
+function do_experiment(queue::String, control::String, param::Float64, arrival::String, service::String, coeff::Tuple, T::Float64, N::Int64, record::Record)
   TVAS = Time_Varying_Arrival_Setting(coeff, arrival)
-  TVSS = Time_Varying_Service_Setting(TVAS, control, target, service)
+  TVSS = Time_Varying_Service_Setting(TVAS, control, param, service)
   set_distribution(TVAS)
   set_distribution(TVSS)
-  set_service_rate_function(TVAS, TVSS)
-  set_tables(TVAS,TVSS)
-#  file_num_in_queue = open("./num in queue ($queue, gamma $(coeff[3]), control $control, target $target, arrival $arrival, service $service, time $T, rep $N).txt" , "w")
-#  file_virtual_sojourn_time = open("./virtual sojourn time ($queue, gamma $(coeff[3]), control $control, target $target, arrival $arrival, service $service, time $T, rep $N).txt" , "w")
-  file_num_in_queue = open("./queue_length_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)).txt" , "w")
-  file_virtual_sojourn_time = open("./sojourn_time_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)).txt" , "w")
+  file_num_in_queue = open("./num in queue ($queue, gamma $(coeff[3]), control $control, param $param, arrival $arrival, service $service, time $T, rep $N).txt" , "w")
+  file_virtual_sojourn_time = open("./virtual sojourn time ($queue, gamma $(coeff[3]), control $control, param $param, arrival $arrival, service $service, time $T, rep $N).txt" , "w")
   regular_recording_interval = T/1000
   t = 0.0
   while t <= T
@@ -461,14 +341,14 @@ function do_experiment(queue::String, control::String, target::Float64, arrival:
 
   for n in 1:N
     println("Replication $n")
-	record.Q = Int64[]
+		record.Q = Int64[]
     record.S = Float64[]
     record.A = Int64[]
     system = TVGG1PS_queue(TVAS, TVSS)
-    customer_pool = generate_customer_pool(TVAS, TVSS, T*2.0)
+    customer_pool = generate_customer_pool(TVAS, TVSS, T*1.2)
     system.regular_recording_interval = T/1000
     system.next_arrival_time = customer_pool[1].arrival_time
-    run_to_end(system, customer_pool, record, T*1.5, 0.0)
+    run_to_end(system, customer_pool, record, T*1.2, 0.0)
     writedlm(file_num_in_queue, transpose(record.Q)) # write record Q(t)
     writedlm(file_virtual_sojourn_time, transpose(record.S)) # write record W(t)
 	end

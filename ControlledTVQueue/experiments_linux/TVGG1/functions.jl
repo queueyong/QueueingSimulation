@@ -328,8 +328,8 @@ function do_experiment(queue::String, control::String, target::Float64, arrival:
   set_distribution(TVSS)
   set_service_rate_function(TVAS, TVSS)
   set_tables(TVAS,TVSS)
-  file_num_in_queue = open("./queue_length_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)).txt" , "w")
-  file_virtual_sojourn_time = open("./sojourn_time_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)).txt" , "w")
+  file_num_in_queue = open("../../../logs/queue_length_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)).txt" , "w")
+  file_virtual_sojourn_time = open("../../../logs/sojourn_time_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)).txt" , "w")
   regular_recording_interval = T/1000
   t = 0.0
   while t <= T
