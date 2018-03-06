@@ -141,7 +141,7 @@ function set_service_rate_function(TVAS::Any, TVSS::Any)
   V = (scv_arrival+scv_service)/2
   λ = TVAS.λ
   if TVSS.control == "SR"
-    TVSS.μ = t -> λ(t)/2-(1/(2*s))+sqrt(((s*λ(t)+1)^2)-4*s*(1-V)*λ(t))/(2*s)
+    TVSS.μ = t -> (λ(t)*s+1 + sqrt((λ(t)*s+1)^2-4*s*(λ(t)-λ(t)*V)))/(2*s)
     TVSS.M = t -> QuadGK.quadgk(TVSS.μ, 0.0, t)[1]
     TVSS.M_interval = (x,y) -> QuadGK.quadgk(TVSS.μ, x, y)[1]
   elseif TVSS.control == "PD"

@@ -141,7 +141,7 @@ function set_service_rate_function(TVAS::Any, TVSS::Any)
   V = (scv_arrival+scv_service)/2
   λ = TVAS.λ
   if TVSS.control == "SR"
-    TVSS.μ = t -> λ(t)/2-(1/(2*s))+sqrt(((s*λ(t)+1)^2)-4*s*(1-V)*λ(t))/(2*s)
+    TVSS.μ = t -> (λ(t)*s+1 + sqrt((λ(t)*s+1)^2-4*s*(λ(t)-λ(t)*V)))/(2*s)
     TVSS.M = t -> QuadGK.quadgk(TVSS.μ, 0.0, t)[1]
     TVSS.M_interval = (x,y) -> QuadGK.quadgk(TVSS.μ, x, y)[1]
   elseif TVSS.control == "PD"
@@ -328,12 +328,12 @@ function do_experiment(queue::String, control::String, target::Float64, arrival:
   set_distribution(TVSS)
   set_service_rate_function(TVAS, TVSS)
   set_tables(TVAS,TVSS)
-  file_num_in_queue = open("./queue_length_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)).txt" , "w")
-  file_virtual_sojourn_time = open("./sojourn_time_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)).txt" , "w")
+  file_num_in_queue = open("../../../logs/$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_queue_length.txt" , "w")
+  file_virtual_sojourn_time = open("../../../logs/$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_sojourn_time.txt" , "w")
   regular_recording_interval = T/1000
   t = 0.0
   while t <= T
-		push!(record.T, t)
+    push!(record.T, t)
     t += regular_recording_interval
   end
   writedlm(file_num_in_queue, transpose(record.T)) # write time-axis
@@ -341,12 +341,12 @@ function do_experiment(queue::String, control::String, target::Float64, arrival:
 
   for n in 1:N
     println("Replication $n")
-	record.Q = Int64[]
+    record.Q = Int64[]
     record.W = Float64[]
     record.S = Float64[]
     record.A = Int64[]
     system = TVGG1_queue(TVAS, TVSS)
-    customer_pool = generate_customer_pool(TVAS, TVSS, T*1.5)
+    customer_pool = generate_customer_pool(TVAS, TVSS, T*2.0)
     system.regular_recording_interval = T/1000
     system.next_arrival_time = customer_pool[1].arrival_time
     run_to_end(system, customer_pool, record, T*1.2, 0.0)
@@ -354,7 +354,7 @@ function do_experiment(queue::String, control::String, target::Float64, arrival:
     record_virtual_sojourn_times(TVSS, record)
     writedlm(file_num_in_queue, transpose(record.Q)) # write record Q(t)
     writedlm(file_virtual_sojourn_time, transpose(record.S)) # write record S(t)
-	end
+  end
   close(file_num_in_queue)
   close(file_virtual_sojourn_time)
 end
