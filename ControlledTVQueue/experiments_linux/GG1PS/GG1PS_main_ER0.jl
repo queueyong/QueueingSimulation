@@ -10,9 +10,9 @@ service_rate_set = (1.0 , 2.0)
 
 for service_rate in service_rate_set
     if service_rate == 1.0
-        service_set = ("ER1","LN1")
+        service_set = ("ER3","LN3")
     elseif service_rate == 2.0
-        service_set = ("ER2","LN2")
+        service_set = ("ER4","LN4")
     end
     for service in service_set
         T = 10000.0

@@ -25,12 +25,21 @@ function string_to_dist(str::String) # All distributions have mean 1.0.
     return LogNormal(log(3*sqrt(3)/10),sqrt(log(3)))
   elseif str == "LN2"
     return LogNormal(log(3*sqrt(3)/5),sqrt(log(3)))
+  elseif str == "ER3"
+    return Erlang(1,1/2)
+  elseif str == "ER4"
+    return Erlang(2,1/2)
+  elseif str == "LN3"
+    return LogNormal(log(sqrt(3)/6), sqrt(log(3)))
+  elseif str == "LN4"
+    return LogNormal(log(sqrt(3)/3), sqrt(log(3)))
   elseif str == "ER0"
     return Erlang(2,1/2)
   elseif str == "LN0"
     return LogNormal(-(log(3)/2),sqrt(log(3)))
   end
 end
+
 
 function set_components(AS::Arrival_Setting, SS::Service_Setting)
   AS.interarrival_distribution = string_to_dist(AS.string_of_distribution)

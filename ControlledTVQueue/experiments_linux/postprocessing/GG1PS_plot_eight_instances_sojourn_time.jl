@@ -116,7 +116,7 @@ N = 10000
 plt = PyPlot
 plt.figure(figsize=(16,11))
 
-suptitle("$(full_name(queue)), ρ = λβ/μ = 0.9, SCV: Erlang ⇒ 0.5, Lognormal ⇒ 2.0")
+suptitle("$(full_name(queue)), Virtual sojourn time ρ = λβ/μ = 0.9, SCV: Erlang ⇒ 0.5, Lognormal ⇒ 2.0")
 for j in 1:8
  plt.subplot(4,2,j)
  #plt.xlabel("time")
@@ -188,5 +188,5 @@ for j in 1:8
                  right=0.9,
                  hspace=0.305,
                  wspace=0.15)
- plt.savefig("../plots/$(queue)_results.pdf")
+ plt.savefig("../plots/$(queue)_results_sojourn_time.pdf")
 end

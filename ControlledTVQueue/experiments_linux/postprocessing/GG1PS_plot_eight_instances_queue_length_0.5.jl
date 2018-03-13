@@ -67,9 +67,9 @@ function plot_queue_length_approximation(arrival::String, service::String, μ::F
 end
 =#
 function scv(short_dist::String)
- if short_dist ∈ ("ER0","ER1","ER2")
+ if short_dist ∈ ("ER0","ER1","ER2","ER3","ER4")
    return 0.5
- elseif short_dist ∈ ("LN0","LN1","LN2")
+ elseif short_dist ∈ ("LN0","LN1","LN2","LN3","LN4")
    return 2.0
  end
 end
@@ -80,6 +80,10 @@ function Base.mean(short_dist::String)
  elseif short_dist ∈ ("ER2","LN2")
   return 1.8
  elseif short_dist ∈ ("ER0","LN0")
+  return 1.0
+ elseif short_dist ∈ ("ER3","LN3")
+  return 0.5
+ elseif short_dist ∈ ("ER4","LN4")
   return 1.0
  end
 end
@@ -99,6 +103,14 @@ function full_name(short_name::String)
   return "Lognormal (mean=1.8)"
  elseif short_name == "GG1PS"
   return L"$G/G/1/PS$"
+ elseif short_name == "ER3"
+  return "Erlang (mean=0.5)"
+ elseif short_name == "ER4"
+  return "Erlang (mean=1)"
+ elseif short_name == "LN3"
+  return "Lognormal (mean=0.5)"
+ elseif short_name == "LN4"
+  return "Lognormal (mean=1)"
  end
 end
 
@@ -106,17 +118,17 @@ end
 queue = "GG1PS"
 μ_set = (1.0, 2.0)
 arrival_set = ("ER0","LN0")
-service_set = (("ER1","LN1"),("ER2","LN2"))
+service_set = (("ER3","LN3"),("ER4","LN4"))
 
 #ylim_factor = 1.5
 #======================#
 T = 10000.0
 N = 10000
-ρ = 0.9
+ρ = 0.5
 plt = PyPlot
 plt.figure(figsize=(16,11))
 
-suptitle("$(full_name(queue)), Queue length, ρ = λβ/μ = 0.9, SCV: Erlang ⇒ 0.5, Lognormal ⇒ 2.0")
+suptitle("$(full_name(queue)), Queue length, ρ = λβ/μ = $ρ, SCV: Erlang ⇒ 0.5, Lognormal ⇒ 2.0")
 for j in 1:8
  plt.subplot(4,2,j)
  #plt.xlabel("time")
@@ -128,16 +140,16 @@ for j in 1:8
    if j ∈ (1,2,3,4)
     μ = 1.0
     if j ∈ (1,2)
-     service = "ER1"
+     service = "ER3"
     elseif j ∈ (3,4)
-     service = "LN1"
+     service = "LN3"
     end
    elseif j ∈ (5,6,7,8)
     μ = 2.0
     if j ∈ (5,6)
-     service = "ER2"
+     service = "ER4"
     elseif j ∈ (7,8)
-     service = "LN2"
+     service = "LN4"
     end
    end
  elseif j ∈ (2,4,6,8)
@@ -145,16 +157,16 @@ for j in 1:8
    if j ∈ (1,2,3,4)
     μ = 1.0
     if j ∈ (1,2)
-     service = "ER1"
+     service = "ER3"
     elseif j ∈ (3,4)
-     service = "LN1"
+     service = "LN3"
     end
    elseif j ∈ (5,6,7,8)
     μ = 2.0
     if j ∈ (5,6)
-     service = "ER2"
+     service = "ER4"
     elseif j ∈ (7,8)
-     service = "LN2"
+     service = "LN4"
     end
    end
  end
@@ -187,5 +199,5 @@ for j in 1:8
                  right=0.9,
                  hspace=0.305,
                  wspace=0.15)
- plt.savefig("../plots/$(queue)_results_queue_length.pdf")
+ plt.savefig("../plots/$(queue)_results_queue_length_0.5.pdf")
 end

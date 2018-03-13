@@ -25,6 +25,14 @@ function string_to_dist(str::String) # All distributions have mean 1.0.
     return LogNormal(log(3*sqrt(3)/10),sqrt(log(3)))
   elseif str == "LN2"
     return LogNormal(log(3*sqrt(3)/5),sqrt(log(3)))
+  elseif str == "ER3"
+    return Erlang(1,1/2)
+  elseif str == "ER4"
+    return Erlang(2,1/2)
+  elseif str == "LN3"
+    return LogNormal(log(sqrt(3)/6), sqrt(log(3)))
+  elseif str == "LN4"
+    return LogNormal(log(sqrt(3)/3), sqrt(log(3)))
   end
 end
 
@@ -275,8 +283,10 @@ function do_experiment(queue::String, arrival::String, service::String, service_
   AS = Arrival_Setting(arrival)
   SS = Service_Setting(service, service_rate)
   set_components(AS, SS)
-  file_queue_length = open("../logs/$(queue)/$(queue)_$(service_rate)_$(arrival)_$(service)_$(T)_$(N)_queue_length.txt" , "w")
-  file_sojourn_time = open("../logs/$(queue)/$(queue)_$(service_rate)_$(arrival)_$(service)_$(T)_$(N)_sojourn_time.txt" , "w")
+#  file_queue_length = open("../logs/$(queue)/$(queue)_$(service_rate)_$(arrival)_$(service)_$(T)_$(N)_queue_length.txt" , "w")
+#  file_sojourn_time = open("../logs/$(queue)/$(queue)_$(service_rate)_$(arrival)_$(service)_$(T)_$(N)_sojourn_time.txt" , "w")
+  file_queue_length = open("../$(queue)_$(service_rate)_$(arrival)_$(service)_$(T)_$(N)_queue_length.txt" , "w")
+  file_sojourn_time = open("../$(queue)_$(service_rate)_$(arrival)_$(service)_$(T)_$(N)_sojourn_time.txt" , "w")
   regular_recording_interval = T/1000
   t = 0.0
   while t <= T
