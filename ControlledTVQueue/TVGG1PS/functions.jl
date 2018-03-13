@@ -148,6 +148,10 @@ function set_service_rate_function(TVAS::Any, TVSS::Any)
     TVSS.μ = t -> λ(t) + (V/s)
     TVSS.M = t -> TVAS.Λ(t)+t*(V/s)
     TVSS.M_interval = (x,y) -> TVAS.Λ_interval(x,y)+(y-x)*(V/s)
+  elseif TVSS.control == "WS"
+    TVSS.μ = t -> λ(t)+(λ(t)/2)*(sqrt(1+(4*V)/((s-1)*λ(t)))-1)
+    TVSS.M = t -> QuadGK.quadgk(TVSS.μ, 0.0, t)[1]
+    TVSS.M_interval = (x,y) -> QuadGK.quadgk(TVSS.μ, x, y)[1]
   end
 end
 

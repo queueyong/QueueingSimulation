@@ -99,11 +99,11 @@ end
 function string_to_dist(Distribution::String) # All distributions have mean 1.0.
   if Distribution == "Pareto"
     return Pareto(1+sqrt(2),2-sqrt(2))
-  elseif Distribution == "Lognormal"
-    return LogNormal(-log(2)/2,sqrt(log(2)))
+  elseif Distribution == "LN"
+    return LogNormal(-(log(3)/2),sqrt(log(3)))
   elseif Distribution == "EXP"
     return Exponential(1.0)
-  elseif Distribution == "E2"
+  elseif Distribution == "ER"
     return Erlang(2,1/2)
   elseif Distribution == "H2"
     return Exponential(1.0) # this is temporal
@@ -123,17 +123,17 @@ function set_service_rate_function(TVAS::Any, TVSS::Any)
   scv_service = 0.0
   if TVAS.string_of_distribution == "EXP"
     scv_arrival = 1.0
-  elseif TVAS.string_of_distribution == "H2"
-    scv_arrival = 4.0
-  elseif TVAS.string_of_distribution == "E2"
+  elseif TVAS.string_of_distribution == "LN"
+    scv_arrival = 2.0
+  elseif TVAS.string_of_distribution == "ER"
     scv_arrival = 0.5
   end
 
   if TVSS.string_of_distribution == "EXP"
     scv_service = 1.0
-  elseif TVSS.string_of_distribution == "H2"
-    scv_service = 4.0
-  elseif TVSS.string_of_distribution == "E2"
+  elseif TVSS.string_of_distribution == "LN"
+    scv_service = 2.0
+  elseif TVSS.string_of_distribution == "ER"
     scv_service = 0.5
   end
 
@@ -148,6 +148,10 @@ function set_service_rate_function(TVAS::Any, TVSS::Any)
     TVSS.μ = t -> λ(t) + (V/s)
     TVSS.M = t -> TVAS.Λ(t)+t*(V/s)
     TVSS.M_interval = (x,y) -> TVAS.Λ_interval(x,y)+(y-x)*(V/s)
+  elseif TVSS.control == "WS"
+    TVSS.μ = t -> λ(t)+(λ(t)/2)*(sqrt(1+(4*V)/((s-1)*λ(t)))-1)
+    TVSS.M = t -> QuadGK.quadgk(TVSS.μ, 0.0, t)[1]
+    TVSS.M_interval = (x,y) -> QuadGK.quadgk(TVSS.μ, x, y)[1]
   end
 end
 
@@ -157,7 +161,7 @@ function set_tables(TVAS::Any, TVSS::Any)
 end
 
 function generate_Hyperexponential(p1::Float64, p2::Float64, θ1::Float64, θ2::Float64)
-  return rand() < p1 ? rand(Exponential(θ1)) : rand(Exponential(θ2)) # with prob. p1, return Exponential(1/λ1), with prob. p2, returen Exp(1/λ2)
+  return rand() < p1 ? rand(Exponential(θ1)) : rand(Exponential(θ2)) # with prob. p1, return Exponential(1/λ1), with prob. p2, return Exp(1/λ2)
 end
 
 function generate_NHNP(TVAS::Time_Varying_Arrival_Setting, T::Float64)
@@ -328,8 +332,11 @@ function do_experiment(queue::String, control::String, target::Float64, arrival:
   set_distribution(TVSS)
   set_service_rate_function(TVAS, TVSS)
   set_tables(TVAS,TVSS)
-  file_num_in_queue = open("../../../logs/$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_queue_length.txt" , "w")
-  file_virtual_sojourn_time = open("../../../logs/$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_sojourn_time.txt" , "w")
+  #file_num_in_queue = open("../../../../logs/$(queue)/$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_queue_length.txt" , "w")
+ # file_virtual_sojourn_time = open("../../../../logs/$(queue)/$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_sojourn_time.txt" , "w")
+  file_num_in_queue = open("../../../../logs/$(queue)/$(target)/$(arrival),$(service)/$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_queue_length.txt" , "w")
+  file_virtual_sojourn_time = open("../../../../logs/$(queue)/$(target)/$(arrival),$(service)/$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_sojourn_time.txt" , "w")
+
   regular_recording_interval = T/1000
   t = 0.0
   while t <= T
@@ -339,14 +346,15 @@ function do_experiment(queue::String, control::String, target::Float64, arrival:
   writedlm(file_num_in_queue, transpose(record.T)) # write time-axis
   writedlm(file_virtual_sojourn_time, transpose(record.T)) # write time-axis
 
+  running_mark = open("../../../../logs/$(queue)/$(target)/$(arrival),$(service)/running_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N).txt", "w")
   for n in 1:N
-    println("Replication $n")
+    println(running_mark, "Replication $n")
     record.Q = Int64[]
     record.W = Float64[]
     record.S = Float64[]
     record.A = Int64[]
     system = TVGG1_queue(TVAS, TVSS)
-    customer_pool = generate_customer_pool(TVAS, TVSS, T*2.0)
+    customer_pool = generate_customer_pool(TVAS, TVSS, T*1.5)
     system.regular_recording_interval = T/1000
     system.next_arrival_time = customer_pool[1].arrival_time
     run_to_end(system, customer_pool, record, T*1.2, 0.0)
@@ -355,6 +363,12 @@ function do_experiment(queue::String, control::String, target::Float64, arrival:
     writedlm(file_num_in_queue, transpose(record.Q)) # write record Q(t)
     writedlm(file_virtual_sojourn_time, transpose(record.S)) # write record S(t)
   end
+  close(running_mark)
   close(file_num_in_queue)
   close(file_virtual_sojourn_time)
+
+  rm("../../../../logs/$(queue)/$(target)/$(arrival),$(service)/running_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N).txt")
+  completion_mark = open("../../../../logs/$(queue)/$(target)/$(arrival),$(service)/completed_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N).txt", "w")
+  close(completion_mark)
+  gc()
 end

@@ -24,7 +24,7 @@ type Time_Varying_Arrival_Setting
     γ = _coefficients[3]
     λ = x -> α + β*sin(γ*x)
     Λ = t -> α*t-(β/γ)*(cos(γ*t)-1)
-    Λ_interval = (x,y) -> α*(s-x)-(β/γ)*(cos(γ*s)-cos(γ*x))
+    Λ_interval = (x,y) -> α*(y-x)-(β/γ)*(cos(γ*y)-cos(γ*x))
     string_of_distribution = _string_of_distribution
     new(α, β, γ, λ, Λ, Λ_interval, string_of_distribution)
   end
@@ -94,4 +94,9 @@ type TVGG1_queue
         sim_time, next_arrival_time, next_completion_time,
         next_regular_recording, time_index, customer_arrival_counter)
   end
+end
+
+type Inverse_Function_Tables
+  a::Array{Float64}
+  s::Array{Float64}
 end

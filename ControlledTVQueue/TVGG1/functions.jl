@@ -148,6 +148,10 @@ function set_service_rate_function(TVAS::Any, TVSS::Any)
     TVSS.μ = t -> λ(t) + (V/s)
     TVSS.M = t -> TVAS.Λ(t)+t*(V/s)
     TVSS.M_interval = (x,y) -> TVAS.Λ_interval(x,y)+(y-x)*(V/s)
+  elseif TVSS.control == "WS"
+    TVSS.μ = t -> λ(t)+(λ(t)/2)*(sqrt(1+(4*V)/((s-1)*λ(t)))-1)
+    TVSS.M = t -> QuadGK.quadgk(TVSS.μ, 0.0, t)[1]
+    TVSS.M_interval = (x,y) -> QuadGK.quadgk(TVSS.μ, x, y)[1]
   end
 end
 
@@ -157,7 +161,7 @@ function set_tables(TVAS::Any, TVSS::Any)
 end
 
 function generate_Hyperexponential(p1::Float64, p2::Float64, θ1::Float64, θ2::Float64)
-  return rand() < p1 ? rand(Exponential(θ1)) : rand(Exponential(θ2)) # with prob. p1, return Exponential(1/λ1), with prob. p2, returen Exp(1/λ2)
+  return rand() < p1 ? rand(Exponential(θ1)) : rand(Exponential(θ2)) # with prob. p1, return Exponential(1/λ1), with prob. p2, return Exp(1/λ2)
 end
 
 function generate_NHNP(TVAS::Time_Varying_Arrival_Setting, T::Float64)
