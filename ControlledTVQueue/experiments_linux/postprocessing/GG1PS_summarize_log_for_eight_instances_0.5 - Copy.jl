@@ -36,7 +36,6 @@ arrival_set = ("ER0","LN0")
 μ_set = (1.0,)
 
 queue = "GG1PS"
-service = "ER"
 N = 10000
 T = 10000.0
 cd(dirname(Base.source_path()))
