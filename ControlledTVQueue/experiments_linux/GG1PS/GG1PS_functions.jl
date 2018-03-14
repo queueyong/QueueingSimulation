@@ -26,7 +26,7 @@ function string_to_dist(str::String) # All distributions have mean 1.0.
   elseif str == "LN2"
     return LogNormal(log(3*sqrt(3)/5),sqrt(log(3)))
   elseif str == "ER3"
-    return Erlang(1,1/2)
+    return Erlang(2,1/4)
   elseif str == "ER4"
     return Erlang(2,1/2)
   elseif str == "LN3"
