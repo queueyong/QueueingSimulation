@@ -55,14 +55,16 @@ end
 # modify here =====================
 queue = "TVGG1"
 s = 10.0
-arrival = "LN"
-service = "LN"
-ylim_factor = 1.5
+arrival = "ER"
+service = "ER"
+ylim_factor = 1.6
+
 #======================#
 
 N = 10000
 control_set = ("SR","PD")
 coeff_set = ((1.0, 0.2, 0.001) , (1.0, 0.2, 0.01) , (1.0, 0.2, 0.1))
+
 
 plt = PyPlot
 plt.figure(figsize=(8,10))
