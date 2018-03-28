@@ -8,7 +8,7 @@ function plot_ρ1(x::Any, coeff::Tuple, μ::Function, β::Float64, plt::Module)
  for i in x
   push!(y, β*λ(i)/μ(i))
  end
- plt.plot(x,y,color="blue",linestyle="--",label=L"$\rho(t)_{S(t)}^{FCFS}$")
+ plt.plot(x,y,color="blue",linestyle="--",label=L"$\rho(t)_{SR}$")
 end
 
 function plot_ρ2(x::Any, coeff::Tuple, μ::Function, β::Float64, plt::Module)
@@ -26,7 +26,7 @@ function plot_ρ3(x::Any, coeff::Tuple, μ::Function, β::Float64, plt::Module)
  for i in x
   push!(y, β*λ(i)/μ(i))
  end
- plt.plot(x,y,color="brown",linestyle="--",label=L"$\rho(t)_{S(t)}^{PS}$")
+ plt.plot(x,y,color="brown",linestyle="--",label=L"$\rho(t)_{PD}$")
 end
 
 function plot_arrival_rate_function(x::Any, coeff::Tuple, plt::Module)
@@ -124,7 +124,7 @@ for d in dist_str_set
   x = linspace(0.0,2000.0,10000)
   plot_arrival_rate_function(x, coeff, plt)
   plot_ρ1(x, coeff, μ1, β, plt)
-  plot_ρ2(x, coeff, μ2, β, plt)
+  #plot_ρ2(x, coeff, μ2, β, plt)
   plot_ρ3(x, coeff, μ3, β, plt)
   plt.legend(loc = "upper right", fontsize = 8)
   plt.savefig("../plots/traffic_intensities_$(arrival_str)_$(service_str).pdf")

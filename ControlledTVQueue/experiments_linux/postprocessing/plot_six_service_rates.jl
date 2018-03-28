@@ -7,7 +7,7 @@ function plot_SC1(x::Any, μ::Function, plt::Module)
  for i in x
   push!(y, μ(i))
  end
- plt.plot(x,y,color="blue",linestyle="--",label=L"$\mu_{S(t)}^{FCFS}$")
+ plt.plot(x,y,color="blue",linestyle="--",label=L"$\mu_{SR}$")
 end
 
 function plot_SC2(x::Any, μ::Function, plt::Module)
@@ -23,7 +23,7 @@ function plot_SC3(x::Any, μ::Function, plt::Module)
  for i in x
   push!(y, μ(i))
  end
- plt.plot(x,y,color="brown",linestyle="--",label=L"$\mu_{S(t)}^{PS}$")
+ plt.plot(x,y,color="brown",linestyle="--",label=L"$\mu_{PD}$")
 end
 
 function plot_SR(x::Any, μ::Function, plt::Module)
@@ -132,17 +132,17 @@ for d in dist_str_set
   Vps = (scv(arrival_dist)+scv(service_dist))/(1+scv(service_dist))
 
   μ1(t) = ( s*λ(t)*β + β + sqrt((s*λ(t)*β+β)^2 + 4*s*λ(t)*(β^2)*(V-1) ) )/(2*s)
-  μ2(t) = ( s*λ(t)*β + sqrt((s*λ(t)*β)^2 + 4*s*λ(t)*(β^2)*Vps ) )/(2*s)
+  #μ2(t) = ( s*λ(t)*β + sqrt((s*λ(t)*β)^2 + 4*s*λ(t)*(β^2)*Vps ) )/(2*s)
   μ3(t) = β*(λ(t)+ Vps/s)
   SR = t -> (λ(t)*s+1 + sqrt((λ(t)*s+1)^2-4*s*(λ(t)-λ(t)*V)))/(2*s)
   PD =
   x = linspace(0.0,2000.0,10000)
   plot_SC1(x, μ1, plt)
-  plot_SC2(x, μ2, plt)
+  #plot_SC2(x, μ2, plt)
   plot_SC3(x, μ3, plt)
   plot_arrival_rate_function(x, coeff, plt)
   plt.legend(loc = "upper right", fontsize = 8)
   plt.savefig("../plots/service_rates_$(arrival_str)_$(service_str).pdf")
-  plt.close()
  end
+ plt.close()
 end

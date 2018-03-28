@@ -49,15 +49,17 @@ function full_name(short_name::String)
   return "(sojourn time) Square-root control"
  elseif short_name == "PD"
   return "Proportional difference control"
+ elseif short_name == "EXP"
+  return "Exp"
  end
 end
 
 # modify here =====================
-queue = "TVGG1"
-s = 10.0
-arrival = "ER"
-service = "ER"
-ylim_factor = 1.6
+queue = "TVGG1PS"
+s = 0.1
+arrival = "EXP"
+service = "EXP"
+ylim_factor = 1.8
 
 #======================#
 
