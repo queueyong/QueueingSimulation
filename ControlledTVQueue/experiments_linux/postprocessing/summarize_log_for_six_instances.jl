@@ -38,7 +38,7 @@ coeff_set = ((1.0, 0.2, 0.1) , (1.0, 0.2, 0.01) , (1.0, 0.2, 0.001))
 queue = "TVGG1"
 s = 1.0
 arrival = "ER"
-service = "ER"
+service = "LN"
 N = 10000
 
 cd(dirname(Base.source_path()))

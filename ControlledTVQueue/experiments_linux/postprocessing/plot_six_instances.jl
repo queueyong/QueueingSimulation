@@ -55,10 +55,10 @@ function full_name(short_name::String)
 end
 
 # modify here =====================
-queue = "TVGG1PS"
+queue = "TVGG1"
 s = 0.1
-arrival = "EXP"
-service = "EXP"
+arrival = "ER"
+service = "LN"
 ylim_factor = 1.8
 
 #======================#
