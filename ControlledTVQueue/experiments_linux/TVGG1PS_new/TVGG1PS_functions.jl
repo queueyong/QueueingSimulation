@@ -80,6 +80,11 @@ function J(t::Float64, table::Array{Float64})
     end
 end
 
+function set_tables(TVAS::Any, TVSS::Any)
+    TVAS.table = table_for_sinusoidal_J((TVAS.α,TVAS.β,TVAS.γ))
+    TVSS.table = table_for_any_periodic_J(TVSS.μ, 2*π/TVAS.γ)
+end
+
 function inverse_integrated_rate_function(Λ::Function, s::Float64, val::Float64, table::Array{Float64})
     return J(val+Λ(s),table)
 end
@@ -122,16 +127,7 @@ function set_service_rate_function(TVAS::Any, TVSS::Any)
     TVSS.μ = t -> λ(t) + (Vps/s)
     TVSS.M = t -> TVAS.Λ(t)+t*(Vps/s)
     TVSS.M_interval = (x,y) -> TVAS.Λ_interval(x,y)+(y-x)*(Vps/s)
-  elseif TVSS.control == "WS"
-    TVSS.μ = t -> λ(t)+(λ(t)/2)*(sqrt(1+(4*V)/((s-1)*λ(t)))-1)
-    TVSS.M = t -> QuadGK.quadgk(TVSS.μ, 0.0, t)[1]
-    TVSS.M_interval = (x,y) -> QuadGK.quadgk(TVSS.μ, x, y)[1]
   end
-end
-
-function set_tables(TVAS::Any, TVSS::Any)
-    TVAS.table = table_for_sinusoidal_J((TVAS.α,TVAS.β,TVAS.γ))
-    TVSS.table = table_for_any_periodic_J(TVSS.μ, 2*π/TVAS.γ)
 end
 
 function generate_NHNP(TVAS::Time_Varying_Arrival_Setting, T::Float64)
@@ -190,7 +186,10 @@ function generate_customer_pool(TVAS::Time_Varying_Arrival_Setting, TVSS::Time_V
 end
 
 function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, record::Record)
-  if system.next_arrival_time == min(system.next_arrival_time, system.next_completion_time, system.next_virtual_completion_time, system.next_regular_recording)
+  if system.next_arrival_time == min(system.next_arrival_time, system.next_completion_time, system.next_regular_recording)
+
+    system.event = :A
+
     current_time = system.next_arrival_time
     # reduce workloads for each customer & virtual customer in system
     total_service_amount = 0.0
@@ -241,7 +240,10 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
     for customer in system.WIP
       total_workload += customer.remaining_workload
     end
-  elseif system.next_completion_time == min(system.next_arrival_time, system.next_completion_time, system.next_virtual_completion_time, system.next_regular_recording)
+  elseif system.next_completion_time == min(system.next_arrival_time, system.next_completion_time, system.next_regular_recording)
+
+    system.event = :C
+
     current_time = system.next_completion_time
     # reduce workloads for each customer & virtual customer in system
     total_service_amount = 0.0
@@ -299,6 +301,7 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
       Q = system.number_of_customers
       system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload, system.TVSS.table)
     end
+#=
   elseif system.next_virtual_completion_time == min(system.next_arrival_time, system.next_completion_time, system.next_virtual_completion_time, system.next_regular_recording)
     current_time = system.next_virtual_completion_time
     # reduce workloads for each customer & virtual customer in system
@@ -347,8 +350,11 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
       Q = system.number_of_customers
       system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload, system.TVSS.table)
     end
+=#
+  elseif system.next_regular_recording == min(system.next_arrival_time, system.next_completion_time, system.next_regular_recording)
 
-  elseif system.next_regular_recording == min(system.next_arrival_time, system.next_completion_time, system.next_virtual_completion_time, system.next_regular_recording)
+    system.event = :R
+
     current_time = system.next_regular_recording
     # reduce workloads for each customer & virtual customer in system
     total_service_amount = 0.0
@@ -363,7 +369,7 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
         virtual_customer.remaining_workload -= individual_virtual_service_amount # reduce workload of virtual customers
       end
     end
-
+#=
     # insert a new virtual customer in the system
     if system.TVSS.string_of_distribution != "H2"
       push!(system.Virtual_WIP, Virtual_Customer(system.time_index, rand(system.TVSS.workload_distribution), current_time, current_time, typemax(Float64), 0, 0))
@@ -374,17 +380,18 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
       θ2 = 1/(2*p2)
       push!(system.Virtual_WIP, Virtual_Customer(system.time_index, generate_Hyperexponential(p1,p2,θ1,θ2), current_time, current_time, typemax(Float64), 0, 0))
     end
-
+=#
+#=
     # increase # of virtual customer
     system.number_of_virtual_customers += 1
-
+=#
     # update simulational time & increase time index
     system.sim_time = current_time
     system.time_index += 1
 
     # update next regular recording time
     system.next_regular_recording += system.regular_recording_interval
-
+#=
     # update next virtual completion info
     if system.number_of_virtual_customers == 1
       system.next_virtual_completion_index = 1
@@ -399,11 +406,13 @@ function next_event(system::TVGG1PS_queue, customer_pool::Array{Customer}, recor
       Q = system.number_of_customers
       system.next_virtual_completion_time = inverse_integrated_rate_function(system.TVSS.M, system.sim_time, (Q+1)*system.Virtual_WIP[nvci].remaining_workload, system.TVSS.table)
     end
-
+=#
+    #=
     # record the number of customer, arrival process, temporal sojourn time
     push!(record.Q, system.number_of_customers)
     push!(record.A, system.customer_arrival_counter)
     push!(record.S, -1.0) # this will be re-recorded when the virtual customer is leaving
+    =#
   end
 end
 
@@ -454,4 +463,55 @@ function do_experiment(queue::String, control::String, target::Float64, arrival:
     completion_mark = open("../../../../logs/$(queue)/$(target)/$(arrival),$(service)/completed_$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N).txt", "w")
     close(completion_mark)
     gc()
+end
+
+# revised simulation functions
+## run single simulation while storing Customer[] information at each recording epoch
+function storeSinglePath(queue::String, control::String, target::Float64, arrival::String, service::String, coeff::Tuple, T::Float64, N::Int64, record::Record)
+    TVAS = Time_Varying_Arrival_Setting(coeff, arrival)
+    TVSS = Time_Varying_Service_Setting(TVAS, control, target, service)
+    set_distribution(TVAS)
+    set_distribution(TVSS)
+    set_service_rate_function(TVAS, TVSS)
+    set_tables(TVAS, TVSS)
+#    file_num_in_queue = open("../../../../logs/$(queue)/$(target)/$(arrival),$(service)/$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_queue_length.txt" , "w")
+#    file_virtual_sojourn_time = open("../../../../logs/$(queue)/$(target)/$(arrival),$(service)/$(queue)_$(target)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_sojourn_time.txt" , "w")
+    regular_recording_interval = T/1000
+    t = 0.0
+    while t <= T
+      push!(record.T, t)
+      t += regular_recording_interval
+    end
+
+    Path = Array{Customer}[]
+    while system.sim_time < T
+      next_event(system, customer_pool, record)
+    end
+
+    return Path
+end
+
+## run simulation proximally from recording epoch t to simulate/record virtual sojourn time at t
+function simulateSojournTime(t::Float64, )
+
+    return sojourn_time
+end
+
+## To fully simulate a queueing system (records Q(t), S(t))
+function do_experiment(queue::String, control::String, target::Float64, arrival::String, service::String, coeff::Tuple, T::Float64, N::Int64, record::Record)
+
+    for n in 1:N
+      #write(running_mark, "Replication $n")
+      println("Replication $n")
+      record.Q = Int64[]
+      record.S = Float64[]
+      record.A = Int64[]
+      system = TVGG1PS_queue(TVAS, TVSS)
+      customer_pool = generate_customer_pool(TVAS, TVSS, T*1.5)
+      system.regular_recording_interval = T/1000
+      system.next_arrival_time = customer_pool[1].arrival_time
+      run_to_end(system, customer_pool, record, T*1.2, 0.0)
+      writedlm(file_num_in_queue, transpose(record.Q)) # write record Q(t)
+      writedlm(file_virtual_sojourn_time, transpose(record.S)) # write record W(t)
+    end
 end

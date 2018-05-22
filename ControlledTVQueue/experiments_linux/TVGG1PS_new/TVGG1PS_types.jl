@@ -19,6 +19,10 @@ type Virtual_Customer
   waiting_time::Float64
 end
 
+type Path
+  Status::Array{Customer}
+end
+
 type Time_Varying_Arrival_Setting
   α::Float64
   β::Float64
@@ -65,6 +69,7 @@ type Record
   Q::Array{Int64}   # number of customers
   W::Array{Float64} # virtual waiting times (not virtual sojourn time)
   S::Array{Float64} # virtual sojourn times
+  P::Dict{Float64,Array{Float64}} # Customer path array
   file_sim_record::IOStream
   function Record()
     T = Float64[]
@@ -73,7 +78,8 @@ type Record
     Q = Int64[]
     W = Float64[]
     S = Float64[]
-    new(T, A, D, Q, W, S)
+    P = Dict{Float64, Array{Float64}}()
+    new(T, A, D, Q, W, S, P)
   end
 end
 
@@ -94,6 +100,7 @@ type TVGG1PS_queue
   next_virtual_completion_index::Int64
   time_index::Int64
   customer_arrival_counter::Int64
+  event::Symbol
   function TVGG1PS_queue(_TVAS::Time_Varying_Arrival_Setting, _TVSS::Time_Varying_Service_Setting)
     TVAS = _TVAS
     TVSS = _TVSS
@@ -111,8 +118,9 @@ type TVGG1PS_queue
     next_virtual_completion_index = 0
     time_index = 1
     customer_arrival_counter = 0
+    event = :A
     new(TVAS, TVSS, WIP, Virtual_WIP, number_of_customers, number_of_virtual_customers, regular_recording_interval,
         sim_time, next_arrival_time, next_completion_time, next_virtual_completion_time,
-        next_regular_recording, next_completion_index, next_virtual_completion_index, time_index, customer_arrival_counter)
+        next_regular_recording, next_completion_index, next_virtual_completion_index, time_index, customer_arrival_counter, event)
   end
 end
