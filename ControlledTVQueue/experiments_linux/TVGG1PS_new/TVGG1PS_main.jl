@@ -4,12 +4,17 @@ include("./TVGG1PS_types.jl")
 include("./TVGG1PS_functions_full_iter.jl")
 
 # main
-#=
-control_set = ("PD","SR")
+
+queue = "TVGG1PS"
+N = 10
+control_set = ("PD", "SR")
 target_set = (0.1, 1.0, 10.0)
-dist_set = (("ER","LN") , ("LN","ER"))
+dist_set = ( ("EXP","EXP"), ("LN","LN"), ("ER","ER"), ("ER","LN") , ("LN","ER"))
 γ_set = (0.1, 0.01, 0.001)
 T_set = (2000.0, 2000.0, 20000.0)
+#γ_set = (0.001, 0.1, 0.01)
+#T_set = (20000.0, 2000.0, 2000.0)
+
 
 for control in control_set
     for dist in dist_set
@@ -25,8 +30,9 @@ for control in control_set
         end
     end
 end
-=#
 
+
+#=
 queue = "TVGG1PS"
 N = 10000
 arrival = "ER"
@@ -35,3 +41,4 @@ coeff = (1.0, 0.2, 0.1)
 T = 2000.0
 record = Record()
 do_experiment(queue, control, target, arrival, service, coeff, T, N, record)
+=#

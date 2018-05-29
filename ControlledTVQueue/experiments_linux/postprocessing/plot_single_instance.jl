@@ -1,9 +1,9 @@
 
-queue = "TVGG1"
-s = 10.0
-control = "SR"
-arrival = "E2"
-service = "H2"
+queue = "TVGG1PS"
+s = 0.1
+control = "PD"
+arrival = "EXP"
+service = "EXP"
 coeff = (1.0, 0.2, 0.001)
 T = 0.0
 if coeff[3] == 0.001 T = 20000.0 else T = 2000.0 end
@@ -53,8 +53,8 @@ plt.figure()
 plt.title("$queue, $arrival/$service, λ(t) = $(coeff[1])+$(coeff[2])sin($(coeff[3])t), $control, s = $s")
 plt.xlabel("time")
 plt.xlim(0,T)
-queue_length_file_path = "../$(queue)/sum_logs/$(queue)_$(s)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_sum_queue_length.txt"
-sojourn_time_file_path = "../$(queue)/sum_logs/$(queue)_$(s)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_sum_sojourn_time.txt"
+queue_length_file_path = "../sum_logs/$queue/$s/$arrival,$service/$(queue)_$(s)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_sum_queue_length.txt"
+sojourn_time_file_path = "../sum_logs/$queue/$s/$arrival,$service/$(queue)_$(s)_$(control)_$(arrival)_$(service)_$(coeff[3])_$(T)_$(N)_sum_sojourn_time.txt"
 queue_length_file = open(queue_length_file_path)
 sojourn_time_file = open(sojourn_time_file_path)
 queue_length_file_array = readdlm(queue_length_file)
@@ -67,6 +67,6 @@ plot_mean_number(queue_length_file_array, plt)
 plot_ci(queue_length_file_array, plt)
 plot_virtual_sojourn_time(sojourn_time_file_array, plt)
 plot_ci(sojourn_time_file_array, plt)
-plot_arrival_rate_function(X, coeff, plt)
+#plot_arrival_rate_function(X, coeff, plt)
 plt.legend(loc = "right", fontsize = 8)
 plt.savefig("../plots/$(queue)_$(s)_$(control)_$(arrival)_$(service)_$(coeff[3]).pdf")

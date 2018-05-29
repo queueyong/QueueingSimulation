@@ -35,11 +35,11 @@ end
 ## main part
 cd(dirname(Base.source_path()))
 
-control_set = ("SR","PD")
+control_set = ("PD",)
 coeff_set = ((1.0, 0.2, 0.1) , (1.0, 0.2, 0.01) , (1.0, 0.2, 0.001))
-queue_set = ("TVGG1", "TVGG1PS")
-s_set = (0.1, 1.0, 10.0)
-dist_set = (("ER","LN"), ("LN","ER"))
+queue_set = ("TVGG1PS",)
+s_set = (0.1, 1.0)
+dist_set = (("EXP","EXP"), ("ER","ER"), ("LN","LN"), ("ER","LN"), ("LN","ER"))
 T_set = (2000.0, 2000.0, 20000.0)
 N = 10000
 
