@@ -72,7 +72,7 @@ end
 ## main part
 cd(dirname(Base.source_path()))
 
-queue_set = ("TVGG1", "TVGG1PS")
+queue_set = ("TVGG1PS",)
 s_set = (0.1, 1.0, 10.0)
 dist_set = (("ER","LN"), ("LN","ER"), ("EXP","EXP"), ("ER","ER"), ("LN","LN"))
 N = 10000

@@ -9,8 +9,8 @@ queue = "TVGG1PS"
 N = 10000
 dist_set = ( ("EXP","EXP"), ("LN","LN"), ("ER","ER"), ("ER","LN") , ("LN","ER"))
 dist = dist_set[3]
-control_set = ("PD", "SR")
-target_set = (0.1, 1.0, 10.0)
+control_set = ("SR",)
+target_set = (10.0,)
 γ_set = (0.1, 0.01, 0.001)
 T_set = (2000.0, 2000.0, 20000.0)
 

@@ -6,17 +6,17 @@ include("./TVGG1PS_functions_full_iter.jl")
 # main
 
 queue = "TVGG1PS"
-N = 1000
+N = 10000
 dist_set = ( ("EXP","EXP"), ("LN","LN"), ("ER","ER"), ("ER","LN") , ("LN","ER"))
 dist = dist_set[2]
-control_set = ("PD", "SR")
-target_set = (0.1, 1.0, 10.0)
-γ_set = (0.1, 0.01, 0.001)
-T_set = (2000.0, 2000.0, 20000.0)
+control_set = ("SR",)
+target_set = (10.0,)
+γ_set = (0.001,)
+T_set = (20000.0,)
 
 for control in control_set
 	for target in target_set
-	    for i in 1:3
+	    for i in 1:1
 		arrival = dist[1]
 		service = dist[2]
 		coeff = (1.0, 0.2, γ_set[i])
