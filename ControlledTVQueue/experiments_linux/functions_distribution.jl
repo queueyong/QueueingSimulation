@@ -14,13 +14,13 @@ end
 
 function Distribution_generator(str_dist::String, μ::Any, scv::Any)
  if str_dist == "EXP"
-  return (Exponential(μ) , "EXP(mean$(μ)scv1.0", "Exponential (θ = $μ)")
+  return (Exponential(μ) , "EXP(mean$(μ)scv1.0", "Exponential (θ=$μ)")
  elseif str_dist == "ER"
   p = params(Erlang_generator(μ,scv))
-  return (Erlang_generator(μ,scv) , "ER(mean$(μ)scv$(scv))", "Erlang (α = $(p[1]), θ = $(p[2]))")
+  return (Erlang_generator(μ,scv) , "ER(mean$(μ)scv$(scv))", "Erlang (α=$(p[1]),θ=$(p[2]))")
  elseif str_dist == "LN"
   p = params(LogNormal_generator(μ,scv))
-  return (LogNormal_generator(μ,scv) , "LN(mean$(μ)scv$(scv))", "LogNormal(μ = $(p[1]), σ = $(p[2]))")
+  return (LogNormal_generator(μ,scv) , "LN(mean$(μ)scv$(scv))", "LogNormal(μ=$(p[1]),σ=$(p[2]))")
  end
 end
 
@@ -32,7 +32,6 @@ function desired_scv_for_dist(str_dist::String)
  elseif str_dist == "EXP"
   return 1.0
  end
-
 end
 
 function string_to_dist(short_name::String)
@@ -42,5 +41,9 @@ function string_to_dist(short_name::String)
   return LogNormal(-(log(3)/2),sqrt(log(3)))
  elseif short_name == "EXP"
   return Exponential(1.0)
+ elseif short_name == "ER2"
+  return Distribution_generator("ER", 2.0, 0.5)[1]
+ elseif short_name == "LN2"
+  return Distribution_generator("LN", 2.0, 2.0)[1]
  end
 end

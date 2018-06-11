@@ -1,3 +1,5 @@
+include("../functions_distribution.jl")
+
 # Types
 type Customer # real customer
   arrival_index::Int64 # this means 'n' of the 'n^th customer'
@@ -7,16 +9,6 @@ type Customer # real customer
   completion_time::Float64 # the time when the service is completed or when this customer is leaving
   sojourn_time::Float64 # the duration from arrival to leaving
   waiting_time::Float64 # the duration from arrival to the time service begins
-end
-
-type Virtual_Customer
-  time_index::Int64 # 'n' of the 'n^th virtual customer' == index of time axis. This is used when we record the sojourn time of a virtual customer.
-  remaining_workload::Float64
-  arrival_time::Float64
-  service_beginning_time::Float64
-  completion_time::Float64
-  sojourn_time::Float64
-  waiting_time::Float64
 end
 
 type Time_Varying_Arrival_Setting
@@ -58,6 +50,74 @@ type Time_Varying_Service_Setting
   end
 end
 
+type TVGG1PS_queue
+  TVAS::Time_Varying_Arrival_Setting
+  TVSS::Time_Varying_Service_Setting
+  WIP::Array{Customer}
+  number_of_customers::Int64
+  regular_recording_interval::Float64
+  sim_time::Float64
+  next_arrival_time::Float64
+  next_completion_time::Float64
+  next_regular_recording::Float64
+  next_completion_index::Int64
+  time_index::Int64
+  customer_arrival_counter::Int64
+  event::Symbol
+  size_customer_pool::Int64
+  function TVGG1PS_queue(_TVAS::Time_Varying_Arrival_Setting, _TVSS::Time_Varying_Service_Setting)
+    TVAS = _TVAS
+    TVSS = _TVSS
+    WIP = Customer[]
+    number_of_customers = 0
+    regular_recording_interval = 0.0
+    sim_time = 0.0
+    next_arrival_time = typemax(Float64)
+    next_completion_time = typemax(Float64)
+    next_regular_recording = 0.0
+    next_completion_index = 0
+    time_index = 1
+    customer_arrival_counter = 0
+    event = :A
+    size_customer_pool = 0
+    new(TVAS, TVSS, WIP, number_of_customers, regular_recording_interval,
+        sim_time, next_arrival_time, next_completion_time,
+        next_regular_recording, next_completion_index, time_index, customer_arrival_counter, event, size_customer_pool)
+  end
+end
+
+type TVGG1PS_queue_path
+  WIP::Array{Customer}
+  number_of_customers::Int64
+  regular_recording_interval::Float64
+  sim_time::Float64
+  next_arrival_time::Float64
+  next_completion_time::Float64
+  next_regular_recording::Float64
+  next_completion_index::Int64
+  time_index::Int64
+  customer_arrival_counter::Int64
+  event::Symbol
+  size_customer_pool::Int64
+  function TVGG1PS_queue_path(system::TVGG1PS_queue)
+    WIP = deepcopy(system.WIP)
+    number_of_customers = system.number_of_customers
+    regular_recording_interval = system.regular_recording_interval
+    sim_time = system.sim_time
+    next_arrival_time = system.next_arrival_time
+    next_completion_time = system.next_completion_time
+    next_regular_recording = system.next_regular_recording
+    next_completion_index = system.next_completion_index
+    time_index = system.time_index
+    customer_arrival_counter = system.customer_arrival_counter
+    event = system.event
+    size_customer_pool = system.size_customer_pool
+    new(WIP, number_of_customers, regular_recording_interval,
+        sim_time, next_arrival_time, next_completion_time,
+        next_regular_recording, next_completion_index, time_index, customer_arrival_counter, event, size_customer_pool)
+  end
+end
+
 type Record
   T::Array{Float64} # time array
   A::Array{Int64}   # number of arrivals
@@ -65,6 +125,7 @@ type Record
   Q::Array{Int64}   # number of customers
   W::Array{Float64} # virtual waiting times (not virtual sojourn time)
   S::Array{Float64} # virtual sojourn times
+  P::Dict{Float64,TVGG1PS_queue_path} # path array
   file_sim_record::IOStream
   function Record()
     T = Float64[]
@@ -73,46 +134,7 @@ type Record
     Q = Int64[]
     W = Float64[]
     S = Float64[]
-    new(T, A, D, Q, W, S)
-  end
-end
-
-type TVGG1PS_queue
-  TVAS::Time_Varying_Arrival_Setting
-  TVSS::Time_Varying_Service_Setting
-  WIP::Array{Customer}
-  Virtual_WIP::Array{Virtual_Customer}
-  number_of_customers::Int64
-  number_of_virtual_customers::Int64
-  regular_recording_interval::Float64
-  sim_time::Float64
-  next_arrival_time::Float64
-  next_completion_time::Float64
-  next_virtual_completion_time::Float64
-  next_regular_recording::Float64
-  next_completion_index::Int64
-  next_virtual_completion_index::Int64
-  time_index::Int64
-  customer_arrival_counter::Int64
-  function TVGG1PS_queue(_TVAS::Time_Varying_Arrival_Setting, _TVSS::Time_Varying_Service_Setting)
-    TVAS = _TVAS
-    TVSS = _TVSS
-    WIP = Customer[]
-    Virtual_WIP = Virtual_Customer[]
-    number_of_customers = 0
-    number_of_virtual_customers = 0
-    regular_recording_interval = 0.0
-    sim_time = 0.0
-    next_arrival_time = typemax(Float64)
-    next_completion_time = typemax(Float64)
-    next_virtual_completion_time = typemax(Float64)
-    next_regular_recording = 0.0
-    next_completion_index = 0
-    next_virtual_completion_index = 0
-    time_index = 1
-    customer_arrival_counter = 0
-    new(TVAS, TVSS, WIP, Virtual_WIP, number_of_customers, number_of_virtual_customers, regular_recording_interval,
-        sim_time, next_arrival_time, next_completion_time, next_virtual_completion_time,
-        next_regular_recording, next_completion_index, next_virtual_completion_index, time_index, customer_arrival_counter)
+    P = Dict{Float64, TVGG1PS_queue_path}()
+    new(T, A, D, Q, W, S, P)
   end
 end

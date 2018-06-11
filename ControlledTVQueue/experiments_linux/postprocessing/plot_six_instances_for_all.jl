@@ -64,7 +64,11 @@ function full_name(short_name::String)
  elseif short_name == "PD"
   return "Difference-matching control"
  elseif short_name == "EXP"
-  return "Exp"
+  return "Exponential"
+ elseif short_name == "ER2"
+  return "Erlang (μ=2)"
+ elseif short_name == "LN2"
+  return "Lognormal (μ=2)"
  end
 end
 

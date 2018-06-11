@@ -1,18 +1,39 @@
-cd(dirname(Base.source_path()))
 using Distributions, Roots, QuadGK
+
+cd(dirname(Base.source_path()))
 include("./TVGG1PS_types.jl")
-include("./TVGG1PS_functions_full_iter.jl")
+include("./TVGG1PS_functions.jl")
 
 # main
 queue = "TVGG1PS"
 N = 10000
+control_set = ["PD", "SR"]
+#dist_set = [ ("EXP","EXP"), ("LN","LN"), ("ER","ER"), ("ER","LN") , ("LN","ER")]
+dist_set = [ ("ER2","ER2"), ("LN2","LN2") ]
+target_set = [0.1]
+γ_set = [0.1, 0.01, 0.001]
+T_set = [2000.0, 2000.0, 20000.0]
+γT_zip = zip(γ_set, T_set)
+LOG_PATH = "$(homedir())/../../sandbox/choy/logs"
+#LOG_PATH = "~/../../sandbox/choy/logs"
 
-control_set = ("PD","SR")
-target_set = (0.1, 1.0, 10.0)
-dist_set = (("ER","LN") , ("LN","ER"))
-γ_set = (0.1, 0.01, 0.001)
-T_set = (2000.0, 2000.0, 20000.0)
+for control in control_set
+    for dist in dist_set
+        for target in target_set
+            for γT in γT_zip
+                arrival = dist[1]
+                service = dist[2]
+                coeff = (1.0, 0.2, γT[1])
+                T = γT[2]   # run time
+                record = Record()
+                do_experiment(queue, control, target, arrival, service, coeff, T, N, record, LOG_PATH)
+            end
+        end
+    end
+end
+println("Done")
 
+#=
 for control in control_set
     for dist in dist_set
         for target in target_set
@@ -27,3 +48,15 @@ for control in control_set
         end
     end
 end
+=#
+
+#=
+queue = "TVGG1PS"
+N = 10000
+arrival = "ER"
+service = "ER"
+coeff = (1.0, 0.2, 0.1)
+T = 2000.0
+record = Record()
+do_experiment(queue, control, target, arrival, service, coeff, T, N, record)
+=#
